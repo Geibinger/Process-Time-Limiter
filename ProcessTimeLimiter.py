@@ -20,7 +20,7 @@ stoic_quotes = [
 ]
 
 ProcessNames = ["League", "Riot"]
-TimeLimitMinutes = 45
+TimeLimitMinutes = 60
 
 def close_game_processes(process_names):
     for process in psutil.process_iter():
@@ -56,8 +56,8 @@ def main():
         game_processes = [p for p in psutil.process_iter() if any(p.name().startswith(name) for name in ProcessNames)]
         
         if game_processes:
-            if running_time >= TimeLimitMinutes * 60 * 0.1 and not NotificationShown:
-                notification_thread = threading.Thread(target=show_notification, args=(f"Only {(TimeLimitMinutes * 0.1 - running_time / 60):.2f}",))
+            if running_time >= TimeLimitMinutes * 60 * 0.25 and not NotificationShown:
+                notification_thread = threading.Thread(target=show_notification, args=(f"{(TimeLimitMinutes * 0.1 - running_time / 60):.2f} minutes left!",))
                 notification_thread.start()
                 NotificationShown = True
 
@@ -68,7 +68,7 @@ def main():
                 close_game_processes(ProcessNames)
                 continue
 
-        time.sleep(1)
+        time.sleep(10)
 
 if __name__ == "__main__":
     main()
