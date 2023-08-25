@@ -37,7 +37,7 @@ def load_remaining_time():
             last_save_date = datetime.strptime(lines[1].strip(), "%Y-%m-%d").date()
             return remaining_time, last_save_date
     except FileNotFoundError:
-        return TimeLimitMinutes * 60, date.today()
+        return TimeLimitMinutes, date.today()
 
 def close_game_processes(process_names):
     for process in psutil.process_iter():
@@ -57,14 +57,14 @@ def show_notification(message):
 
 def main():
     remaining_time, last_save_date = load_remaining_time()
-    notification_thread = threading.Thread(target=show_notification, args=(f"Started Time Limiter with {remaining_time / 60} minutes left!",))
+    notification_thread = threading.Thread(target=show_notification, args=(f"Started Time Limiter with {remaining_time} minutes left!",))
     notification_thread.start()
     current_date = date.today()
     if current_date > last_save_date:  # Check if a new day has started
-        remaining_time = TimeLimitMinutes * 60  # Reset remaining time at the start of a new day
+        remaining_time = TimeLimitMinutes
         last_save_date = current_date
 
-    start_time = time.time() - (TimeLimitMinutes * 60 - remaining_time)
+    start_time = time.time() - (TimeLimitMinutes * 60 - remaining_time * 60)
     TimeLeftNotificationShown = False
     QuoteNotificationShown = False
 
@@ -74,7 +74,7 @@ def main():
         game_processes = [p for p in psutil.process_iter() if any(p.name().startswith(name) for name in ProcessNames)]
 
         if game_processes:
-            remaining_time = TimeLimitMinutes * 60 - running_time
+            remaining_time = (TimeLimitMinutes * 60 - running_time) / 60
             QuoteNotificationShown = False
             if running_time >= TimeLimitMinutes * 60 * 0.75 and not TimeLeftNotificationShown:
                 notification_thread = threading.Thread(target=show_notification, args=(f"{(TimeLimitMinutes * 0.25):.2f} minutes left!",))
