@@ -22,22 +22,24 @@ stoic_quotes = [
 
 
 ProcessNames = ["League", "Riot"]
-TimeLimitMinutes = 120
+TimeLimitMinutes = 180
 RemainingTimeFile = "remaining_time.txt"
 
-def save_remaining_time(remaining_time, last_save_date):
+def save_remaining_time(remaining_time, daily_total_time, total_time, last_save_date):
     with open(RemainingTimeFile, "w") as file:
-        file.write(f"{remaining_time}\n{last_save_date}")
+        file.write(f"{remaining_time}\n{daily_total_time}\n{total_time}\n{last_save_date}")
 
 def load_remaining_time():
     try:
         with open(RemainingTimeFile, "r") as file:
             lines = file.readlines()
             remaining_time = float(lines[0])
-            last_save_date = datetime.strptime(lines[1].strip(), "%Y-%m-%d").date()
-            return remaining_time, last_save_date
+            daily_total_time = float(lines[1])
+            total_time = float(lines[2])
+            last_save_date = datetime.strptime(lines[3].strip(), "%Y-%m-%d").date()
+            return remaining_time, daily_total_time, total_time, last_save_date
     except FileNotFoundError:
-        return TimeLimitMinutes, date.today()
+        return TimeLimitMinutes, 0, 0, date.today()
 
 def close_game_processes(process_names):
     for process in psutil.process_iter():
@@ -56,46 +58,68 @@ def show_notification(message):
     )
 
 def main():
-    remaining_time, last_save_date = load_remaining_time()
+    remaining_time, daily_total_time, total_time, last_save_date = load_remaining_time()
+    old_daily_total_time = daily_total_time
+    old_total_time = total_time
     notification_thread = threading.Thread(target=show_notification, args=(f"Started Time Limiter with {remaining_time} minutes left!",))
     notification_thread.start()
+    time.sleep(1)
+    notification_thread.join()
     current_date = date.today()
     if current_date > last_save_date:  # Check if a new day has started
         remaining_time = TimeLimitMinutes
         last_save_date = current_date
+        old_daily_total_time = 0
 
-    start_time = time.time() - (TimeLimitMinutes * 60 - remaining_time * 60)
     TimeLeftNotificationShown = False
     QuoteNotificationShown = False
+    GamesRunning = False
+    FirstRun = True
+    start_time = 0
 
     while True:
-        current_time = time.time()
-        running_time = current_time - start_time
         game_processes = [p for p in psutil.process_iter() if any(p.name().startswith(name) for name in ProcessNames)]
 
         if game_processes:
+            if FirstRun:
+                start_time = time.time()
+                FirstRun = False
+
+            GamesRunning = True
+            current_time = time.time()
+            running_time = current_time - start_time
             remaining_time = (TimeLimitMinutes * 60 - running_time) / 60
             QuoteNotificationShown = False
-            if running_time >= TimeLimitMinutes * 60 * 0.75 and not TimeLeftNotificationShown:
-                notification_thread = threading.Thread(target=show_notification, args=(f"{(TimeLimitMinutes * 0.25):.2f} minutes left!",))
-                notification_thread.start()
-                TimeLeftNotificationShown = True
-                notification_thread.join()
 
-            if running_time >= TimeLimitMinutes * 60:
+            save_remaining_time(remaining_time, old_daily_total_time + running_time / 60, old_total_time + running_time / 60, last_save_date)
+
+            if running_time >= TimeLimitMinutes * 60 * 0.75 and not TimeLeftNotificationShown:
+                notification_thread = threading.Thread(target=show_notification, args=(f"{(remaining_time):.2f} minutes left!",))
+                notification_thread.start()
+                time.sleep(1)
+                notification_thread.join()
+                TimeLeftNotificationShown = True
+
+            if remaining_time <= 0:
                 if not QuoteNotificationShown:
                     random_quote = random.choice(stoic_quotes)
                     notification_thread = threading.Thread(target=show_notification, args=(random_quote,))
                     notification_thread.start()
-                    QuoteNotificationShown = True
+                    time.sleep(1)
                     notification_thread.join()
+                    QuoteNotificationShown = True
                 close_game_processes(ProcessNames)
                 remaining_time = 0
-                save_remaining_time(remaining_time, current_date)
+                save_remaining_time(remaining_time, old_daily_total_time + running_time / 60, old_total_time + running_time / 60, last_save_date)
                 continue
-
-            save_remaining_time(remaining_time, current_date)
-
+        else:
+            if GamesRunning:
+                notification_thread = threading.Thread(target=show_notification, args=(f"Stopped Time Limiter with {remaining_time} minutes left!",))
+                notification_thread.start()
+                time.sleep(1)
+                notification_thread.join()
+                GamesRunning = False
+            continue
         time.sleep(10)
 
 if __name__ == "__main__":
