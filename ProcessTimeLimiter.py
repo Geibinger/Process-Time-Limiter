@@ -29,6 +29,7 @@ class TimeLimiter:
         self.load_time()
         self.quote_notification_shown = False
         self.start_time = None
+        self.old_running_time = 0  # Store old running time
 
     def save_remaining_time(self):
         with open(remaining_time_file, "w") as file:
@@ -51,7 +52,7 @@ class TimeLimiter:
     def close_game_processes(self):
         for process in psutil.process_iter():
             for name in process_names:
-                if process.name().startswith(name):
+                if process.name().find(name) != -1:
                     try:
                         process.terminate()
                     except psutil.NoSuchProcess:
@@ -64,18 +65,22 @@ class TimeLimiter:
         notification_thread.join()
 
     def start(self):
-        self.show_notification(f"Started Time Limiter with {self.remaining_time:.2f} minutes left!")
+        self.show_notification(f"Started Time Limiter!")
 
         while True:
             game_processes = [p for p in psutil.process_iter() if any(p.name().startswith(name) for name in process_names)]
+            if date.today() > self.last_save_date:
+                self.daily_total_time = 0
+                self.remaining_time = time_limit_minutes
+                self.last_save_date = date.today()
             current_time = time.time()
 
             if game_processes:
                 if self.start_time is None:
                     self.start_time = current_time
 
-                running_time = current_time - self.start_time
-                self.remaining_time = max(0, time_limit_minutes - running_time / 60)
+                running_time = current_time - self.start_time + self.old_running_time
+                self.remaining_time = max(0, self.remaining_time - (running_time - self.old_running_time) / 60)
 
                 if running_time >= time_limit_minutes * 0.75 and not self.quote_notification_shown:
                     random_quote = random.choice(stoic_quotes)
@@ -91,21 +96,10 @@ class TimeLimiter:
                     self.remaining_time = 0
 
                 # Update total times
-                self.daily_total_time += running_time / 60
-                self.total_time += running_time / 60
+                self.daily_total_time += (running_time - self.old_running_time) / 60  # Update with new running time
+                self.total_time += (running_time - self.old_running_time) / 60  # Update with new running time
 
-            else:
-                if self.start_time is not None:
-                    self.show_notification(f"Stopped Time Limiter with {self.remaining_time:.2f} minutes left!")
-                    self.close_game_processes()
-                self.start_time = None
-                self.quote_notification_shown = False
-                self.remaining_time = time_limit_minutes
-
-            # Reset daily total time if a new day is detected
-            if date.today() > self.last_save_date:
-                self.daily_total_time = 0
-                self.last_save_date = date.today()
+                self.old_running_time = running_time  # Save new running time
 
             self.save_remaining_time()
             time.sleep(10)
