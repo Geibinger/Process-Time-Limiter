@@ -1,5 +1,7 @@
 # Process Time Limiter
 
+🕒Promote Responsible Gaming | ⚙️ Customizable Process List | 📆 Scheduled Execution
+
 The **Process Time Limiter** is a Python script developed using ChatGPT that helps you manage and limit your gaming time on Windows systems. This script monitors specified game processes and enforces a daily time limit on their usage. If the time limit is exceeded, the script will terminate the game processes and display motivational quotes to encourage a healthier balance between gaming and other activities.
 
 ## Motivation
