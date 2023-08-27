@@ -21,7 +21,7 @@ pip install psutil plyer
 2. **Creating the Executable**: To create an executable for the script, you can use **PyInstaller**. Open a terminal and navigate to the directory containing the script (`ProcessTimeLimiter.py`). Run the following command:
 
 ```bash
-pyinstaller --noconsole --onefile --hidden-import plyer.platforms.win.notification ProcessTimeLimiter.py
+pyinstaller --noconsole --onefile --hidden-import plyer.platforms.win.notification .\ProcessTimeLimiter.py
 ```
 
 
